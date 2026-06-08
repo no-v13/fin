@@ -1,3 +1,4 @@
+const API_URL = "https://octopusgame.onrender.com";
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -151,7 +152,7 @@ export default function App() {
 
   const fetchState = async () => {
     try {
-      const res = await fetch('/api/game/state');
+    const res = await fetch(`${API_URL}/api/game/state`);
       if (!res.ok) return;
       const data: GameState = await res.json();
       setGameState(data);
@@ -254,7 +255,10 @@ export default function App() {
   const startTimerAction = async () => {
     if (soundEnabled) SquidAudio.playBeep(1000, 0.45);
     try {
-      const res = await fetch('/api/game/admin/start-timer', { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/game/admin/start-timer`, {
+  method: 'POST'
+});
+
       if (res.ok) {
         const data = await res.json();
         setGameState(data);
