@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+@theme {
+  --font-sans: "Outfit", "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Custom Neon Glow Styles */
+.glow-pink {
+  text-shadow: 0 0 4px rgba(255, 0, 127, 0.6), 0 0 8px rgba(255, 0, 127, 0.8);
+}
+.glow-pink-strong {
+  text-shadow: 0 0 8px #ff007f, 0 0 15px #ff007f, 0 0 25px #ff007f;
+}
+.glow-cyan {
+  text-shadow: 0 0 4px rgba(0, 255, 255, 0.6), 0 0 8px rgba(0, 255, 255, 0.8);
+}
+.glow-cyan-strong {
+  text-shadow: 0 0 8px #00ffff, 0 0 15px #00ffff, 0 0 25px #00ffff;
+}
+.glow-green {
+  text-shadow: 0 0 4px rgba(0, 255, 102, 0.6), 0 0 8px rgba(0, 255, 102, 0.8);
+}
+.glow-green-strong {
+  text-shadow: 0 0 8px #00ff66, 0 0 15px #00ff66, 0 0 25px #00ff66;
+}
+
+.border-glow-pink {
+  box-shadow: 0 0 10px rgba(255, 0, 127, 0.5), inset 0 0 5px rgba(255, 0, 127, 0.2);
+}
+.border-glow-pink-strong {
+  box-shadow: 0 0 20px #ff007f, inset 0 0 10px rgba(255, 0, 127, 0.5);
+}
+.border-glow-cyan {
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), inset 0 0 5px rgba(0, 255, 255, 0.2);
+}
+.border-glow-cyan-strong {
+  box-shadow: 0 0 20px #00ffff, inset 0 0 10px rgba(0, 255, 255, 0.5);
+}
+.border-glow-green {
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.5), inset 0 0 5px rgba(0, 255, 102, 0.2);
+}
+.border-glow-green-strong {
+  box-shadow: 0 0 20px #00ff66, inset 0 0 10px rgba(0, 255, 102, 0.5);
+}
+
+/* Custom Animation for Pulse and Shaking */
+@keyframes squid-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.9;
+  }
+}
+
+.animate-squid-pulse {
+  animation: squid-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes flash-fast {
+  0%, 100% { opacity: 1; filter: brightness(1.2); }
+  50% { opacity: 0.4; filter: brightness(0.8); }
+}
+
+.animate-flash-fast {
+  animation: flash-fast 0.4s infinite;
+}
+
+/* Additional UI utilities for standalone presentation */
+body {
+  background-color: #000000;
+  color: #ffffff;
+  overflow-x: hidden;
+}

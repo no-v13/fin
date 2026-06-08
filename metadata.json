@@ -1,0 +1,6 @@
+{
+  "name": "Survival Game Board",
+  "description": "오징어 게임 스타일의 실시간 서바이벌 게임 발표자용 통합 전광판 시스템",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

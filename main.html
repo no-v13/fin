@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>오징어 게임 서바이벌 전광판 - MAIN SCREEN</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase Compat v9 SDK CDNs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;705&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Outfit', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      background-color: #030303;
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 5px rgba(255, 0, 127, 0.6), 0 0 10px rgba(255, 0, 127, 0.8), 0 0 20px #ff007f;
+    }
+    .neon-text-cyan {
+      text-shadow: 0 0 5px rgba(0, 255, 255, 0.6), 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px #00ffff;
+    }
+    .neon-text-green {
+      text-shadow: 0 0 5px rgba(0, 255, 102, 0.6), 0 0 10px rgba(0, 255, 102, 0.8), 0 0 20px #00ff66;
+    }
+    .neon-border-pink {
+      box-shadow: 0 0 12px rgba(255, 0, 127, 0.4), inset 0 0 6px rgba(255, 0, 127, 0.2);
+      border-color: rgba(255, 0, 127, 0.8);
+    }
+    .neon-border-cyan {
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.4), inset 0 0 6px rgba(0, 255, 255, 0.2);
+      border-color: rgba(0, 255, 255, 0.8);
+    }
+    .neon-border-green {
+      box-shadow: 0 0 12px rgba(0, 255, 102, 0.4), inset 0 0 6px rgba(0, 255, 102, 0.2);
+      border-color: rgba(0, 255, 102, 0.8);
+    }
+    /* 카드 이동 스르륵 애니메이션을 위한 트랜지션 클래스 */
+    .fly-card {
+      transition: all 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+      position: relative;
+      z-index: 10;
+    }
+    .pulse-flash {
+      animation: pulse-flash-anim 0.5s ease-in-out 6;
+    }
+    @keyframes pulse-flash-anim {
+      0%, 100% { outline: 3px solid #ff007f; filter: brightness(1.3); transform: scale(1.05); }
+      50% { outline: 0px solid transparent; filter: brightness(0.9); transform: scale(1); }
+    }
+    /* 3D 네온 버튼 스타일 */
+    .neon-btn-red {
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+      background: linear-gradient(135deg, #7f1d1d, #ef4444);
+    }
+    .neon-btn-blue {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    }
+    /* 스크롤바 커스텀 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #ff007f;
+      border-radius: 4px;
+    }
+    /* 빔프로젝터용 대형 알림창 */
+    #ejection-warning {
+      animation: warning-flash 1s infinite alternate;
+    }
+    @keyframes warning-flash {
+      0% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 0, 127, 0.5); }
+      100% { transform: scale(1.02); box-shadow: 0 0 35px rgba(255, 0, 127, 0.8); }
+    }
+  </style>
+</head>
+<body class="p-6 relative select-none">
+
+  <!-- 뒷배경 사이버 그리드 등 데코레이션 -->
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,127,0.05)_0%,transparent_75%)] pointer-events-none"></div>
+  <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 opacity-60"></div>
+
+  <!-- FIREBASE CONFIGURATION MODAL OVERLAY (비밀번호나 API키 입력 UI) -->
+  <div id="config-overlay" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-zinc-950 border-2 border-pink-500 p-8 rounded-3xl neon-border-pink">
+      <div class="flex justify-center gap-2 mb-4">
+        <span class="w-6 h-6 rounded-full border-1.5 border-[#FF007F] flex items-center justify-center font-bold text-[#FF007F]">○</span>
+        <span class="w-6 h-6 border-1.5 border-[#00FFFF] flex items-center justify-center font-bold text-[#00FFFF] rotate-45 transform">▲</span>
+        <span class="w-6 h-6 border-1.5 border-[#00FF55] flex items-center justify-center font-bold text-[#00FF55]">■</span>
+      </div>
+      <h3 class="text-xl font-bold text-center text-white tracking-widest uppercase mb-1">FIREBASE REALTIME DB 연결</h3>
+      <p class="text-xs text-zinc-400 text-center mb-6">설정을 입력하면 상호 기기가 연동되고, 미입력 시 단독 로컬 임베디드 모드로 작동합니다.</p>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs text-zinc-400 font-bold mb-1">API Key</label>
+          <input id="fb-apiKey" type="text" placeholder="AIzaSy..." class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="block text-xs text-zinc-400 font-bold mb-1">Database URL</label>
+          <input id="fb-databaseURL" type="text" placeholder="https://your-project-id-default-rtdb.firebaseio.com" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="block text-xs text-zinc-400 font-bold mb-1">Project ID</label>
+          <input id="fb-projectId" type="text" placeholder="your-project-id" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500">
+        </div>
+        
+        <div class="flex gap-2 pt-2">
+          <button onclick="startInMemoryFallback()" class="flex-1 py-3 px-4 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-750 text-zinc-300 transition-all">
+            단독 로컬 모드
+          </button>
+          <button onclick="connectFirebase()" class="flex-1 py-3 px-4 rounded-xl text-xs font-bold bg-pink-600 hover:bg-pink-500 text-white shadow-lg shadow-pink-500/20 transition-all">
+            실시간 연동 가동
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER BRANDING RAIL -->
+  <header class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md p-4 rounded-2xl mb-6 relative z-10">
+    <div class="flex items-center gap-4">
+      <div class="flex gap-2">
+        <span class="w-9 h-9 rounded-full border-2 border-[#FF007F] flex items-center justify-center font-bold text-[#FF007F] text-sm shadow-[0_0_8px_#ff007f]">○</span>
+        <span class="w-9 h-9 border-2 border-[#00FFFF] flex items-center justify-center font-bold text-[#00FFFF] rotate-45 transform text-xs shadow-[0_0_8px_#00ffff]">▲</span>
+        <span class="w-9 h-9 border-2 border-[#00FF55] flex items-center justify-center font-bold text-[#00FF55] text-sm shadow-[0_0_8px_#00ff55]">■</span>
+      </div>
+      <div>
+        <h1 class="text-2xl font-black tracking-wider text-white flex items-center gap-2">
+          SURVIVAL CEILING <span class="text-[#FF007F] neon-text-pink">BOARD</span>
+        </h1>
+        <p class="text-[10px] text-zinc-400 font-mono tracking-widest uppercase">REAL-TIME BEAM PROJECT PROTOCOL DIGITAL BOARD</p>
+      </div>
+    </div>
+
+    <!-- MAIN STATE / ROUND PANEL (LARGE FOR BEAM VIEW) -->
+    <div class="flex items-center gap-4 bg-black/60 px-5 py-2.5 rounded-xl border border-zinc-800/80 shadow-inner">
+      <div class="text-right">
+        <div class="text-[9px] text-zinc-500 font-mono tracking-widest">ROUND STAGE</div>
+        <div id="round-state-text" class="text-lg font-black text-[#00FFFF] neon-text-cyan"> 대기실 진입 단계 </div>
+      </div>
+      <div class="w-px h-8 bg-zinc-800"></div>
+      <div class="text-right">
+        <div class="text-[9px] text-zinc-500 font-mono tracking-widest">PHASE STEP</div>
+        <div id="phase-state-text" class="text-lg font-black text-pink-400 neon-text-pink uppercase tracking-widest">LOBBY</div>
+      </div>
+      <div class="w-px h-8 bg-zinc-800" id="header-timer-divider" style="display:none;"></div>
+      <div class="text-right" id="header-timer-box" style="display:none;">
+        <div class="text-[9px] text-zinc-500 font-mono tracking-widest">REMAINING</div>
+        <div id="countdown-timer" class="text-xl font-mono font-black text-[#00FF55] neon-text-green">00:30</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEW CONTAINER -->
+  <main class="grid grid-cols-1 lg:grid-cols-4 gap-6 relative z-10">
+    
+    <!-- LEFT BAR / SPEAKER SYSTEM / PRESENTATION DECK -->
+    <section class="lg:col-span-1 space-y-6">
+      <!-- PRESENTER CONTROLLER -->
+      <div class="rounded-2xl border-2 border-pink-500 bg-zinc-950 p-5 shadow-2xl relative overflow-hidden neon-border-pink">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-pink-500"></div>
+        <h3 class="text-xs font-bold tracking-widest text-[#FF007F] uppercase neon-text-pink mb-4 flex items-center gap-1.5">
+          👑 PRESENTATION CONTROLLER
+        </h3>
+
+        <!-- START / READY MANUAL ACTS -->
+        <div class="space-y-3">
+          <!-- Standby 완료 버튼 (우측 상단 크게 보여질 중요 역할 탑재) -->
+          <div id="lobby-ready-element" class="p-1 rounded-xl bg-gradient-to-r from-pink-600/30 to-purple-600/30 border border-pink-500/30 animate-pulse">
+            <button onclick="commitReadyLobby()" class="w-full py-4 px-4 rounded-lg font-black text-xs uppercase bg-pink-600 hover:bg-pink-500 text-white transition-all shadow-[0_0_20px_rgba(255,0,127,0.3)] cursor-pointer">
+              ✅ 참가자 전체 입장 완료 (START)
+            </button>
+          </div>
+
+          <!-- Active Game Phase Actions -->
+          <div id="active-game-elements" style="display:none;" class="space-y-3">
+            <button onclick="startDiscussionTimer30()" class="w-full py-4 px-4 font-black text-xs bg-emerald-600 hover:bg-emerald-500 rounded-xl border border-emerald-400 text-white transition-all flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer text-center">
+              ⏱️ 30초 대화 토론 개시
+            </button>
+
+            <button onclick="forceStepAdvance()" class="w-full py-3 px-4 font-bold text-xs bg-zinc-900 border border-[#00FFFF] text-[#00FFFF] hover:bg-zinc-800 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center">
+              NEXT PHASE STEP ▶
+            </button>
+          </div>
+
+          <!-- Bot & Reset Module (Presenter handy utils) -->
+          <div class="pt-3 border-t border-zinc-900 grid grid-cols-2 gap-2">
+            <button onclick="seedPresenterBots()" class="py-2.5 px-3 rounded-lg text-[10px] font-bold bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-zinc-100 transition-all">
+              🤖 가상 봇 15명 입장
+            </button>
+            <button onclick="resetPresenterFull()" class="py-2.5 px-3 rounded-lg text-[10px] font-bold bg-red-950/40 border border-red-900/40 text-red-400 hover:bg-red-900/60 transition-all">
+              🔄 전체 게임 초기화
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SPEECH / DIRECT SCRIPT (큼직막하게 카드뉴스로 노출) -->
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-lg max-h-[460px] overflow-y-auto">
+        <h3 class="text-xs font-bold tracking-widest text-[#00FFFF] uppercase neon-text-cyan mb-3">
+          📌 STAGE SCRIPT CARDS (대본 무구)
+        </h3>
+        <div id="script-container" class="space-y-4">
+          <!-- Dynamic high priority card-news script injects -->
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT 3-PANELS CO-WORKING STAGES -->
+    <section class="lg:col-span-3 space-y-6">
+      
+      <!-- GIANT NOTIFICATION BROADCAST BANNER (방출 심사 시 대형 노출) -->
+      <div id="ejection-warning" style="display:none;" class="p-5 rounded-2xl bg-gradient-to-r from-[#FF007F]/20 via-black to-[#FF007F]/20 border-3 border-[#FF007F] text-center relative z-20">
+        <h4 class="text-2xl md:text-3xl font-black text-rose-100 uppercase tracking-widest neon-text-pink leading-snug">
+          📢 [RED] 버튼을 누른 팀은 방출할 조원을 고르세요!
+        </h4>
+        <p class="text-xs text-rose-300 mt-2">
+          선택 버튼을 누른 구역의 리더는 30초 타이머가 끝나기 전에 방출자를 지목하십시오. 타임아웃 발생 시 시스템에 의해 강제 무작위 이동 조치됩니다.
+        </p>
+      </div>
+
+      <!-- CENTRAL RED & BLUE NEON SHOWCASE (VOTING STEP ONLY) -->
+      <div id="voting-step-choices" style="display:none;" class="p-6 rounded-2xl bg-zinc-950/80 border border-zinc-800 shadow-xl">
+        <div class="text-center mb-4">
+          <span class="px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-bold font-mono tracking-widest">
+            COOPERATOR (BLUE) VS EXCLUSION (RED) CHOICE STATION
+          </span>
+        </div>
+        <div class="grid grid-cols-2 gap-6 max-w-2xl mx-auto py-3">
+          <div class="text-center space-y-4">
+            <div class="w-32 h-32 rounded-full mx-auto flex items-center justify-center neon-btn-blue text-white font-black text-5xl shadow-[0_0_30px_rgba(59,130,246,0.6)]">
+              🔵
+            </div>
+            <div class="space-y-1">
+              <h5 class="text-lg font-black text-blue-400 tracking-wider">CO-SURVIVE</h5>
+              <p class="text-[10px] text-zinc-400">모두가 협력하여 전체 생존 가용점을 수호합니다</p>
+            </div>
+          </div>
+
+          <div class="text-center space-y-4">
+            <div class="w-32 h-32 rounded-full mx-auto flex items-center justify-center neon-btn-red text-white font-black text-5xl shadow-[0_0_30px_rgba(239,68,68,0.6)] animate-pulse">
+              🔴
+            </div>
+            <div class="space-y-1">
+              <h5 class="text-lg font-black text-red-400 tracking-wider">EXCLUSION</h5>
+              <p class="text-[10px] text-zinc-400">배신을 통한 타점 확보 시 1명의 방출자를 내보냅니다</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THE THREE ZONE LANES -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- ZONE A -->
+        <div id="lane-A" class="rounded-2xl border-2 border-emerald-500 p-5 flex flex-col min-h-[440px] bg-zinc-950/40 neon-border-green">
+          <div class="flex items-center justify-between mb-4 border-b border-zinc-800/60 pb-3">
+            <div>
+              <h4 class="text-lg font-bold text-emerald-400 neon-text-green">A구역 (TEAM GREEN)</h4>
+              <p id="cnt-A" class="text-[9px] text-zinc-500 font-mono mt-0.5">0 명 등록됨</p>
+            </div>
+            <span id="label-vote-A" class="px-2 py-1 rounded text-[10px] font-black bg-zinc-800 text-zinc-400">결정전 대기</span>
+          </div>
+          <!-- Zone Leader banner info -->
+          <div id="leaderinfo-A" class="bg-zinc-900/60 rounded-xl p-2 px-3 border border-zinc-800 text-xs mb-3 flex items-center justify-between text-yellow-300" style="display:none">
+            <span class="font-bold">👑 Leader: <span id="leadername-A">-</span></span>
+            <span class="text-[9px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 font-bold uppercase rounded">의사권</span>
+          </div>
+          <div id="list-A" class="flex-1 space-y-2.5 overflow-y-auto max-h-[360px] pr-1"></div>
+        </div>
+
+        <!-- ZONE B -->
+        <div id="lane-B" class="rounded-2xl border-2 border-pink-500 p-5 flex flex-col min-h-[440px] bg-zinc-950/40 neon-border-pink">
+          <div class="flex items-center justify-between mb-4 border-b border-zinc-800/60 pb-3">
+            <div>
+              <h4 class="text-lg font-bold text-pink-400 neon-text-pink">B구역 (TEAM PINK)</h4>
+              <p id="cnt-B" class="text-[9px] text-zinc-500 font-mono mt-0.5">0 명 등록됨</p>
+            </div>
+            <span id="label-vote-B" class="px-2 py-1 rounded text-[10px] font-black bg-zinc-800 text-zinc-400">결정전 대기</span>
+          </div>
+          <!-- Zone Leader banner info -->
+          <div id="leaderinfo-B" class="bg-zinc-900/60 rounded-xl p-2 px-3 border border-zinc-800 text-xs mb-3 flex items-center justify-between text-yellow-300" style="display:none">
+            <span class="font-bold">👑 Leader: <span id="leadername-B">-</span></span>
+            <span class="text-[9px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 font-bold uppercase rounded">의사권</span>
+          </div>
+          <div id="list-B" class="flex-1 space-y-2.5 overflow-y-auto max-h-[360px] pr-1"></div>
+        </div>
+
+        <!-- ZONE C -->
+        <div id="lane-C" class="rounded-2xl border-2 border-cyan-500 p-5 flex flex-col min-h-[440px] bg-zinc-950/40 neon-border-cyan">
+          <div class="flex items-center justify-between mb-4 border-b border-zinc-800/60 pb-3">
+            <div>
+              <h4 class="text-lg font-bold text-cyan-400 neon-text-cyan">C구역 (TEAM CYAN)</h4>
+              <p id="cnt-C" class="text-[9px] text-zinc-500 font-mono mt-0.5">0 명 등록됨</p>
+            </div>
+            <span id="label-vote-C" class="px-2 py-1 rounded text-[10px] font-black bg-zinc-800 text-zinc-400">결정전 대기</span>
+          </div>
+          <!-- Zone Leader banner info -->
+          <div id="leaderinfo-C" class="bg-zinc-900/60 rounded-xl p-2 px-3 border border-zinc-800 text-xs mb-3 flex items-center justify-between text-yellow-300" style="display:none">
+            <span class="font-bold">👑 Leader: <span id="leadername-C">-</span></span>
+            <span class="text-[9px] px-1.5 py-0.5 bg-yellow-400/20 text-yellow-400 font-bold uppercase rounded">의사권</span>
+          </div>
+          <div id="list-C" class="flex-1 space-y-2.5 overflow-y-auto max-h-[360px] pr-1"></div>
+        </div>
+      </div>
+
+      <!-- EVENT LOG / TRANSLATION TIMELINE -->
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-lg">
+        <h4 class="text-xs font-bold tracking-widest text-pink-500 uppercase neon-text-pink mb-3">
+          🎬 TRANSITION TRADING TIMELINE LOG
+        </h4>
+        <div id="log-console" class="space-y-2 max-h-[140px] overflow-y-auto text-xs font-mono text-zinc-300">
+          <div class="text-zinc-650">[SYSTEM] 시스템 부트 업성공. 참가 배정을 대기하고 있습니다...</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FLY REALLOCATION GIANT POPUP DIALOG OVERLAY (Fly / CSSTransition support match) -->
+  <div id="trading-fly-popup" style="display:none;" class="fixed inset-0 z-40 bg-black/92 backdrop-blur-md flex flex-col items-center justify-center p-6 transition-all duration-300">
+    <div class="max-w-xl text-center space-y-8 p-10 rounded-3xl border-4 border-pink-500 neon-border-pink bg-zinc-950 shadow-2xl relative">
+      <div class="flex justify-center gap-3">
+        <span class="w-12 h-12 rounded-full border-4 border-[#FF007F] flex items-center justify-center font-bold text-[#FF007F] text-xl">○</span>
+        <span class="w-12 h-12 border-4 border-[#00FFFF] flex items-center justify-center font-bold text-[#00FFFF] rotate-45 transform text-lg">▲</span>
+        <span class="w-12 h-12 border-4 border-[#00FF55] flex items-center justify-center font-bold text-[#00FF55] text-xl">■</span>
+      </div>
+      <div class="space-y-4">
+        <span class="px-4 py-1 rounded bg-pink-500/10 border-2 border-pink-500 text-pink-400 font-extrabold tracking-widest text-xs uppercase animate-pulse">
+          ⚠️ SQUID SECURITY COMPELLED REALLOCATION
+        </span>
+        <h2 id="trading-p-nickname" class="text-4xl md:text-5xl font-black tracking-tight text-white leading-normal neon-text-pink">
+          - <br />
+          <span class="text-[#00FFFF] text-5xl md:text-6xl tracking-tighter uppercase">방출 대 트레이드 조치!</span>
+        </h2>
+        <p id="trading-direction-text" class="text-lg text-zinc-300 font-mono leading-relaxed bg-black/60 p-4 rounded-xl border border-zinc-800/80">
+          - 구역에서 - 구역으로 격리 이동 처리되어 자산을 탈환합니다.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 독립형 가상 시뮬레이터 패널 (우측 하단 분리 고글, 삭제하거나 감춰도 핵심 DB 로직에 에러나 영향을 절대 주지 않음) -->
+  <div id="standalone-sim-console" class="fixed bottom-4 right-4 z-30 max-w-xs w-80 bg-zinc-950 border border-[#00FFFF] rounded-2xl shadow-xl p-4 overflow-hidden shadow-[0_0_15px_rgba(0,255,255,0.1)]">
+    <div class="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
+      <span class="text-xs font-black tracking-widest text-[#00FFFF] flex items-center gap-1.5 neon-text-cyan">
+        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+        독립형 가상 시뮬레이터 (SIM)
+      </span>
+      <button onclick="toggleSimCollapse()" class="text-zinc-400 hover:text-white text-xs font-bold px-1.5">ㅡ</button>
+    </div>
+    <div id="sim-body" class="space-y-2.5 text-[11px] text-zinc-400 leading-relaxed">
+      <p class="text-[10px] leading-relaxed">스마트폰 여러 대 연결 없이도 시나리오 전체 작동 구조를 모니터링할 수 있는 독립 격리형 유틸 모션 콘솔입니다.</p>
+      <div class="space-y-1.5 pt-1.5 border-t border-zinc-900">
+        <button onclick="simTriggerRandomVotes()" class="w-full py-2 bg-zinc-900 border border-zinc-700 hover:border-[#00FFFF] text-[#00FFFF] rounded-lg transition-all font-bold">
+          🎲 가상 리더 랜덤 투표 실행
+        </button>
+        <button onclick="simTriggerRandomEjection()" class="w-full py-2 bg-zinc-900 border border-zinc-700 hover:border-pink-500 text-pink-400 rounded-lg transition-all font-bold">
+          💥 가상 리더 랜덤 방출 실행
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CORE SCRIPTS -->
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 1: GAME RULES AND CARD SCRIPT DEFINITIONS
+    // ----------------------------------------------------
+    const GAME_SCRIPTS = [
+      {
+        round: 1,
+        title: "Round 1: The Red or Blue Button",
+        scenario: "You are locked in a room. There are two buttons in front of you.",
+        choices: "🔵 Blue: We can survive together<br>🔴 Red: Who are you? I can’t believe in you guys. I will survive alone",
+        rules: "If all teams choose Blue, everyone survives peacefully. However, if more than half of the people choose Red, only the Red choosers survive, and everyone else dies. You have 30 seconds to talk, and your team should choose either blue or red. Go! Time is up! Which button did you choose? In return for this survival, the Red team must trade one member to another group. Remember, even if you move to a new team, you must keep your original number card with you."
+      },
+      {
+        round: 2,
+        title: "Round 2: Zombie Apocalypse in Woolworths",
+        scenario: "A zombie crisis has started. You are now stuck inside Woolworths with very little food.",
+        choices: "🔵 Blue (Sharing): We share the food and wait for rescue to survive together.<br>🔴 Red (Stealing): We steal food from other teams to feed ourselves.",
+        rules: "If your team chooses Red again, you must trade another member randomly. 30 seconds. Start! Teams that chose Red, please change one of your members right now."
+      },
+      {
+        round: 3,
+        title: "Round 3: The Runaway Train (Final Battle)",
+        scenario: "A runaway train is coming at 150 km/h. There are old workers on the track.",
+        choices: "🔵 Blue (Emergency Brake): We stop the train to save the workers. Our team will take a heavy physical impact, which might cause serious injuries.<br>🔴 Red (Safety Wall): We build a wall to protect ourselves.",
+        rules: "This is your final choice. 30 seconds, go! The game is over. You must trade another member again. Now, please open your secret score cards. Teams, add up all the numbers of your current members. The team with the highest score wins!"
+      }
+    ];
+
+    function renderPresenterScripterDeck() {
+      const container = document.getElementById('script-container');
+      container.innerHTML = '';
+      GAME_SCRIPTS.forEach(sc => {
+        container.innerHTML += `
+          <div class="p-3.5 rounded-xl bg-black border border-zinc-800 hover:border-pink-500/40 transition-all text-xs space-y-2.5">
+            <span class="px-2 py-0.5 rounded text-[9px] font-black bg-pink-950 text-pink-400 tracking-wider">ROUND ${sc.round} SCRIPT</span>
+            <h4 class="font-extrabold text-white text-[13px]">${sc.title}</h4>
+            <p class="text-zinc-400 font-mono leading-relaxed"><span class="text-amber-400">Scenario_</span> ${sc.scenario}</p>
+            <p class="text-zinc-400 font-sans leading-relaxed"><span class="text-[#00FFFF]">Choices_</span><br>${sc.choices}</p>
+            <p class="text-[11px] text-zinc-500 border-t border-zinc-900 pt-2 leading-relaxed font-sans">${sc.rules}</p>
+          </div>
+        `;
+      });
+    }
+  </script>
+
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 2: MEMORY DATA ENGINE & HYBRID LOCAL SYNC FALLBACK
+    // ----------------------------------------------------
+    let isConnectedWithFirebase = false;
+    let databaseReference = null;
+    let fallbackTimerInterval = null;
+
+    // GLOBAL GAME STATE PERSISTED
+    let syncState = {
+      participants: [],
+      currentRound: 0, // 0 = Lobby
+      step: 'INTRO', // INTRO -> VOTING -> EJECTION -> TRADE_TIME -> FINISHED
+      timerStartTimestamp: null,
+      timerDuration: 30,
+      timerActive: false,
+      leaders: { A: "", B: "", C: "" },
+      votes: { A: "", B: "", C: "" },
+      ejected: { A: "", B: "", C: "" },
+      transitionLogs: [],
+      systemSerialNum: 0
+    };
+
+    // 로컬 보존 메모리 캐시 (Fly 트레이드 애니메이션 대조용)
+    let previousLoggedParticipants = [];
+
+    // Local Storage Fallback Boot
+    function startInMemoryFallback() {
+      document.getElementById('config-overlay').style.display = 'none';
+      writeTimelineLog("[SYSTEM] 파이어베이스가 생략되었습니다. 단독 로컬 메모리 임베디드 시뮬레이션 모드로 가동합니다.");
+      setupStateDatabaseObservers();
+      runActiveTimerEnginePolling();
+    }
+
+    // Connect Real Database Firebase Compat SDK
+    function connectFirebase() {
+      const apiKey = document.getElementById('fb-apiKey').value.trim();
+      const databaseURL = document.getElementById('fb-databaseURL').value.trim();
+      const projectId = document.getElementById('fb-projectId').value.trim();
+
+      if (!apiKey || !databaseURL || !projectId) {
+        alert("Firebase 연동 정보를 모두 정확하게 기재해 주십시오. 빔프로젝터용 프리젠테이션 독립 작동 시 필수 속성입니다.");
+        return;
+      }
+
+      try {
+        const firebaseConfig = { apiKey, databaseURL, projectId };
+        firebase.initializeApp(firebaseConfig);
+        databaseReference = firebase.database().ref('game_broadcasting_state');
+        isConnectedWithFirebase = true;
+        document.getElementById('config-overlay').style.display = 'none';
+        writeTimelineLog("[SYSTEM] 파이어베이스 실시간 데이터베이스 연결 수립 성공!");
+        
+        // Listen Realtime Changes
+        databaseReference.on('value', (snapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            syncState = val;
+            executeCoreVisualRenderEngine();
+          } else {
+            // First time initialization seed
+            writeDatabaseGameState();
+          }
+        });
+        runActiveTimerEnginePolling();
+      } catch (e) {
+        alert("Firebase 초기화 중 문법 오류 발생: " + e.message);
+      }
+    }
+
+    function writeDatabaseGameState() {
+      if (isConnectedWithFirebase && databaseReference) {
+        databaseReference.set(syncState);
+      } else {
+        executeCoreVisualRenderEngine();
+      }
+    }
+
+    function writeTimelineLog(message) {
+      const consoleLog = document.getElementById('log-console');
+      const stamp = new Date().toLocaleTimeString();
+      consoleLog.innerHTML = `<div class="text-zinc-300"><span class="text-pink-500 font-bold">[${stamp}]</span> ${message}</div>` + consoleLog.innerHTML;
+    }
+  </script>
+
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 3: VISUAL ENGINE, SOUNDS & INTERSECT FLY ANIMATION
+    // ----------------------------------------------------
+    let soundEnabled = true;
+
+    function playSynthBuzzer(freq = 660, len = 0.15) {
+      if (!soundEnabled) return;
+      try {
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, ac.currentTime);
+        gain.gain.setValueAtTime(0.12, ac.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + len);
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.start();
+        osc.stop(ac.currentTime + len);
+      } catch(e){}
+    }
+
+    // CORE VISUAL RENDER ENGINE
+    function executeCoreVisualRenderEngine() {
+      // 1. Header & Stage Indicators Action
+      const stepText = document.getElementById('phase-state-text');
+      const roundText = document.getElementById('round-state-text');
+      stepText.innerText = syncState.step;
+      
+      if (syncState.currentRound === 0) {
+        roundText.innerText = "대기실 진입 단계";
+        document.getElementById('lobby-ready-element').style.display = 'block';
+        document.getElementById('active-game-elements').style.display = 'none';
+        document.getElementById('voting-step-choices').style.display = 'none';
+        document.getElementById('ejection-warning').style.display = 'none';
+      } else {
+        roundText.innerText = `ROUND 0${syncState.currentRound}`;
+        document.getElementById('lobby-ready-element').style.display = 'none';
+        document.getElementById('active-game-elements').style.display = 'block';
+
+        // Choices area render toggle
+        if (syncState.step === 'VOTING') {
+          document.getElementById('voting-step-choices').style.display = 'block';
+        } else {
+          document.getElementById('voting-step-choices').style.display = 'none';
+        }
+
+        // Warning bar render toggle
+        if (syncState.step === 'EJECTION') {
+          document.getElementById('ejection-warning').style.display = 'block';
+        } else {
+          document.getElementById('ejection-warning').style.display = 'none';
+        }
+      }
+
+      // 2. Realtime Remaining Timer Indicator
+      const timerDivider = document.getElementById('header-timer-divider');
+      const timerBox = document.getElementById('header-timer-box');
+      if (syncState.timerActive) {
+        timerDivider.style.display = 'block';
+        timerBox.style.display = 'block';
+      } else {
+        timerDivider.style.display = 'none';
+        timerBox.style.display = 'none';
+      }
+
+      // 3. Trade Shift Detection Engine (ANIMATION TRIGGER)
+      detectAndTriggerPhysicalTrades(syncState.participants);
+
+      // 4. Lanes Participants Card Drawing
+      rebuildLanesDomLists();
+    }
+
+    function detectAndTriggerPhysicalTrades(serverMembers) {
+      if (previousLoggedParticipants.length > 0 && serverMembers.length > 0) {
+        serverMembers.forEach(sm => {
+          const matchedPrev = previousLoggedParticipants.find(p => p.id === sm.id);
+          // If exist and zone changed, fire spectacular fly transition & countdown penalty representation matching
+          if (matchedPrev && matchedPrev.zone !== sm.zone) {
+            triggerVisualTradeFlyOverlay(sm, matchedPrev.zone, sm.zone);
+          }
+        });
+      }
+      // Sync previous cache safely
+      previousLoggedParticipants = JSON.parse(JSON.stringify(serverMembers));
+    }
+
+    function triggerVisualTradeFlyOverlay(p, fromZ, toZ) {
+      playSynthBuzzer(150, 0.4);
+      setTimeout(() => playSynthBuzzer(440, 0.2), 150);
+      setTimeout(() => playSynthBuzzer(880, 0.3), 320);
+
+      const overlay = document.getElementById('trading-fly-popup');
+      const nameTxt = document.getElementById('trading-p-nickname');
+      const pathTxt = document.getElementById('trading-direction-text');
+
+      nameTxt.innerHTML = `${p.nickname} <br><span class="text-[#00FFFF] text-5xl md:text-6xl tracking-tighter uppercase font-black">방출 및 영역 이전!</span>`;
+      pathTxt.innerText = `[${fromZ} 구역] ➡️ [${toZ} 구역] 구역으로 격리 이동 조치 발령!`;
+      overlay.style.display = 'flex';
+
+      // 3 seconds visual splash
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        // Add dynamic flash animation to card element
+        const newlyArrivedDom = document.getElementById(`card-${p.id}`);
+        if (newlyArrivedDom) {
+          newlyArrivedDom.classList.add('pulse-flash');
+          setTimeout(() => {
+            newlyArrivedDom.classList.remove('pulse-flash');
+          }, 3500);
+        }
+      }, 3500);
+    }
+
+    function rebuildLanesDomLists() {
+      const zones = ['A', 'B', 'C'];
+      
+      zones.forEach(z => {
+        const listDiv = document.getElementById(`list-${z}`);
+        const cntP = document.getElementById(`cnt-${z}`);
+        const voteLabel = document.getElementById(`label-vote-${z}`);
+        const leaderInfoBox = document.getElementById(`leaderinfo-${z}`);
+        const leaderName = document.getElementById(`leadername-${z}`);
+
+        const members = syncState.participants.filter(p => p.zone === z);
+        cntP.innerText = `${members.length} 명 등록됨`;
+
+        // Render Votes
+        if (syncState.currentRound > 0) {
+          const voteVal = syncState.votes[z];
+          if (voteVal === 'BLUE') {
+            voteLabel.innerText = "🔵 BLUE";
+            voteLabel.className = "px-2.5 py-1 rounded text-[10px] font-black bg-blue-600 text-white shadow-md";
+          } else if (voteVal === 'RED') {
+            voteLabel.innerText = "🔴 RED";
+            voteLabel.className = "px-2.5 py-1 rounded text-[10px] font-black bg-red-650 text-white shadow-md animate-pulse";
+          } else {
+            voteLabel.innerText = "결정 대기중";
+            voteLabel.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-zinc-800 text-zinc-500";
+          }
+
+          // Render Leader Info Banner
+          const leadId = syncState.leaders[z];
+          const matchedLeaderObj = leadId ? members.find(m => m.id === leadId) : null;
+          if (matchedLeaderObj) {
+            leaderInfoBox.style.display = 'flex';
+            leaderName.innerText = matchedLeaderObj.nickname;
+          } else {
+            leaderInfoBox.style.display = 'none';
+          }
+        } else {
+          voteLabel.innerText = "대기 단계";
+          voteLabel.className = "px-2.5 py-1 rounded text-[10px] font-bold bg-zinc-800 text-zinc-500";
+          leaderInfoBox.style.display = 'none';
+        }
+
+        // Draw Members List Dom
+        listDiv.innerHTML = '';
+        members.forEach(p => {
+          const isLead = syncState.leaders[z] === p.id;
+          const isElectedOut = syncState.ejected[z] === p.id;
+          
+          listDiv.innerHTML += `
+            <div id="card-${p.id}" class="fly-card p-3 rounded-xl border-2 transition-all duration-300 bg-zinc-900 border-zinc-800 hover:border-zinc-650 relative ${isElectedOut ? 'bg-yellow-950/20 border-yellow-600 scale-95 opacity-80' : ''}">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-zinc-950 border border-zinc-700 flex items-center justify-center font-mono font-bold text-xs text-zinc-300">
+                    #${p.num}
+                  </span>
+                  <div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm font-extrabold text-white">${p.nickname}</span>
+                      ${p.isBot ? '<span class="text-[8px] bg-sky-950 border border-sky-800 text-sky-400 px-1 rounded font-bold uppercase">BOT</span>' : ''}
+                    </div>
+                    <div class="text-[9px] text-zinc-400 font-mono">💵 명예자산: ${p.score || 120} Point</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  ${isLead ? '<span class="text-xs text-amber-400">👑</span>' : ''}
+                  ${syncState.step === 'EJECTION' && isElectedOut ? '<span class="text-[8px] px-1.5 py-0.5 bg-red-600 border border-red-500 text-white rounded font-bold uppercase animate-pulse">EJECTING</span>' : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      });
+    }
+  </script>
+
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 4: CORE RULES & TIMEOUT PREV OVERWATCH DECISION TRANSITION
+    // ----------------------------------------------------
+    function runActiveTimerEnginePolling() {
+      setInterval(() => {
+        if (syncState.timerActive && syncState.timerStartTimestamp) {
+          const diff = Math.floor((Date.now() - syncState.timerStartTimestamp) / 1000);
+          const remaining = syncState.timerDuration - diff;
+
+          if (remaining <= 0) {
+            syncState.timerActive = false;
+            syncState.timerStartTimestamp = null;
+            playSynthBuzzer(400, 0.55);
+
+            // AUTO TRANSITIONS ON TIME TIMEOUTS
+            if (syncState.step === 'VOTING') {
+              writeTimelineLog("[시간 초과!] 미결 조는 투표 단계가 강제 자동 전환되며 방출 오버워치 심사로 진입합니다.");
+              triggerEjectionPhaseSafe();
+            } else if (syncState.step === 'EJECTION') {
+              writeTimelineLog("[시간 초과!] 미방출 조에 대해 강제 오버워치 타임아웃 룰이 작동합니다.");
+              triggerCompelledTradesReallocate();
+            } else {
+              writeDatabaseGameState();
+            }
+          } else {
+            // Update UI element smoothly
+            const mins = Math.floor(remaining / 60).toString().padStart(2, '0');
+            const secs = (remaining % 60).toString().padStart(2, '0');
+            const timerTxt = document.getElementById('countdown-timer');
+            if (timerTxt) {
+              timerTxt.innerText = `${mins}:${secs}`;
+              if (remaining <= 5) {
+                timerTxt.className = 'text-xl font-mono font-black text-red-550 animate-pulse';
+                playSynthBuzzer(800, 0.08);
+              } else {
+                timerTxt.className = 'text-xl font-mono font-black text-[#00FF55] neon-text-green';
+              }
+            }
+          }
+        }
+      }, 1000);
+    }
+
+    function commitReadyLobby() {
+      // Transition from Lobby to Round 1
+      writeTimelineLog("[발표자 마스터] 전체 입장 완료 처리. ROUND 1을 시작합니다!");
+      syncState.currentRound = 1;
+      syncState.step = 'INTRO';
+      syncState.votes = { A: "", B: "", C: "" };
+      syncState.ejected = { A: "", B: "", C: "" };
+      syncState.timerStartTimestamp = null;
+      syncState.timerActive = false;
+      
+      // Seed leaders randomly per active room
+      assignRandomLeadersForAllZones();
+      writeDatabaseGameState();
+    }
+
+    function startDiscussionTimer30() {
+      if (syncState.currentRound === 0) return;
+      playSynthBuzzer(1000, 0.4);
+      writeTimelineLog(`[STAGE CONTROL] ROUND 0${syncState.currentRound} '${syncState.step}' 단계 30초 논의 제한 타이머 가동!`);
+      syncState.step = 'VOTING';
+      syncState.votes = { A: "", B: "", C: "" };
+      syncState.ejected = { A: "", B: "", C: "" };
+      syncState.timerDuration = 30;
+      syncState.timerActive = true;
+      syncState.timerStartTimestamp = Date.now();
+      writeDatabaseGameState();
+    }
+
+    function assignRandomLeadersForAllZones() {
+      const zones = ['A', 'B', 'C'];
+      zones.forEach(z => {
+        const members = syncState.participants.filter(p => p.zone === z);
+        if (members.length > 0) {
+          const rand = Math.floor(Math.random() * members.length);
+          syncState.leaders[z] = members[rand].id;
+        } else {
+          syncState.leaders[z] = "";
+        }
+      });
+    }
+
+    // Ejection Phase Entry
+    function triggerEjectionPhaseSafe() {
+      const activeZones = ['A', 'B', 'C'];
+      // Fill missing votes automatically with random choice
+      activeZones.forEach(z => {
+        const hasMember = syncState.participants.some(p => p.zone === z);
+        if (hasMember && !syncState.votes[z]) {
+          syncState.votes[z] = Math.random() < 0.5 ? 'BLUE' : 'RED';
+        }
+      });
+
+      syncState.step = 'EJECTION';
+      syncState.ejected = { A: "", B: "", C: "" };
+      
+      // Start Compelled 30s Casting Timeout Overwatch Timer
+      syncState.timerDuration = 30; // 30 seconds as requested in new criteria
+      syncState.timerActive = true;
+      syncState.timerStartTimestamp = Date.now();
+      writeDatabaseGameState();
+    }
+
+    // 30 Seconds Compelled Trade execution
+    function triggerCompelledTradesReallocate() {
+      syncState.step = 'TRADE_TIME';
+      syncState.timerActive = false;
+      syncState.timerStartTimestamp = null;
+
+      const zones = ['A', 'B', 'C'];
+      
+      // Overlook Red zones to eject missing targets
+      zones.forEach(z => {
+        if (syncState.votes[z] === 'RED') {
+          const members = syncState.participants.filter(p => p.zone === z);
+          if (members.length > 0 && !syncState.ejected[z]) {
+            const leadId = syncState.leaders[z];
+            const nonLeaders = members.filter(p => p.id !== leadId);
+            const candidates = nonLeaders.length > 0 ? nonLeaders : members;
+            const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+            
+            syncState.ejected[z] = chosen.id;
+            writeTimelineLog(`⚠️ [시간초과 페널티] RED를 누른 ${z}구역에서 정한 시간 내가 지목하지 않아, 무작위로 '${chosen.nickname}'님이 강제 지목되어 방출됩니다!`);
+          }
+        }
+      });
+
+      // Gather Ejected list
+      const actualEjectedMap = {};
+      zones.forEach(z => {
+        const tId = syncState.ejected[z];
+        if (tId) {
+          const matchedObj = syncState.participants.find(p => p.id === tId);
+          if (matchedObj) actualEjectedMap[z] = matchedObj;
+        }
+      });
+
+      const ejectedFromZones = zones.filter(z => !!actualEjectedMap[z]);
+
+      if (ejectedFromZones.length === 3) {
+        // Red Zone trade rotation clockwise or counter
+        const pA = actualEjectedMap.A;
+        const pB = actualEjectedMap.B;
+        const pC = actualEjectedMap.C;
+        if (Math.random() < 0.5) {
+          pA.zone = 'B'; pB.zone = 'C'; pC.zone = 'A';
+          writeTimelineLog(`🔄 삼방구역 트레이드 단행! A구역 [${pA.nickname}] ➡️ B, B구역 [${pB.nickname}] ➡️ C, C구역 [${pC.nickname}] ➡️ A`);
+        } else {
+          pA.zone = 'C'; pB.zone = 'A'; pC.zone = 'B';
+          writeTimelineLog(`🔄 삼방구역 트레이드 단행! A구역 [${pA.nickname}] ➡️ C, B구역 [${pB.nickname}] ➡️ A, C구역 [${pC.nickname}] ➡️ B`);
+        }
+      }
+      else if (ejectedFromZones.length === 2) {
+        const z1 = ejectedFromZones[0];
+        const z2 = ejectedFromZones[1];
+        const p1 = actualEjectedMap[z1];
+        const p2 = actualEjectedMap[z2];
+        p1.zone = z2;
+        p2.zone = z1;
+        writeTimelineLog(`🔄 맞교환 스왑! ${z1}구역 [${p1.nickname}] ⚛️ ${z2}구역 [${p2.nickname}] 상호 강제 편입!`);
+      }
+      else if (ejectedFromZones.length === 1) {
+        const soloZone = ejectedFromZones[0];
+        const p = actualEjectedMap[soloZone];
+        const alternatives = zones.filter(alt => alt !== soloZone);
+        const destination = alternatives[Math.floor(Math.random() * alternatives.length)];
+        p.zone = destination;
+        writeTimelineLog(`🔄 단독 추방 수용! RED구역 ${soloZone}의 [${p.nickname}]님이 평화로운 협동 ${destination}구역으로 강제 구금 이주되었습니다!`);
+      } else {
+        writeTimelineLog(`🕊️ 평화적 타결! 모든 구역이 BLUE(도운 협조)를 지명하여 평화롭게 현재 영지를 유지 보존합니다.`);
+      }
+
+      // Survive scoring awards and integrity keeping matching (#1~#4 points preserved)
+      syncState.participants.forEach(p => {
+        const currentZ = p.zone;
+        const isEjectedGuyThisRound = (syncState.ejected[currentZ] === p.id);
+        if (!isEjectedGuyThisRound) {
+          p.score = (p.score || 100) + 50; // Survival reward points
+        } else {
+          p.score = (p.score || 100) + 10; // Low reward points
+        }
+      });
+
+      writeDatabaseGameState();
+    }
+
+    function forceStepAdvance() {
+      if (!syncState || syncState.currentRound === 0) return;
+      playSynthBuzzer(440, 0.25);
+
+      if (syncState.step === 'INTRO') {
+        syncState.step = 'VOTING';
+        syncState.timerActive = false;
+        writeTimelineLog(`[마스터 컨트롤] ${syncState.currentRound}라운드 투표 Phase 진입!`);
+      } else if (syncState.step === 'VOTING') {
+        triggerEjectionPhaseSafe();
+        writeTimelineLog(`[마스터 컨트롤] 이탈 투표 마침. 방출 심사용 배정 Phase 진입!`);
+      } else if (syncState.step === 'EJECTION') {
+        triggerCompelledTradesReallocate();
+        writeTimelineLog(`[마스터 컨트롤] 강제 스왑 트랜잭션 수동 실행!`);
+      } else if (syncState.step === 'TRADE_TIME') {
+        // Prepare next round and compute points reduce
+        if (syncState.currentRound < 3) {
+          syncState.currentRound += 1;
+          syncState.step = 'INTRO';
+          syncState.votes = { A: "", B: "", C: "" };
+          syncState.ejected = { A: "", B: "", C: "" };
+          assignRandomLeadersForAllZones();
+          writeTimelineLog(`[마스터 컨트롤] 라운드 0${syncState.currentRound} 새 기수를 출발합니다!`);
+        } else {
+          // Finish and aggregate
+          syncState.currentRound = 4;
+          syncState.step = 'FINISHED';
+          calculateFinalIntegrityScores();
+        }
+      }
+      writeDatabaseGameState();
+    }
+
+    // 백엔드 연산 데이터 유결성 정산 규칙 (합산 Reduce 점수출력 소수점 오류 방지)
+    function calculateFinalIntegrityScores() {
+      writeTimelineLog("[정산 개시] 3라운드가 종결되어 소속 멤버 기준 최종 구역 점수 Reduce 연산을 개시합니다!");
+      const zones = ['A', 'B', 'C'];
+      const scoreTots = { A:0, B:0, C:0 };
+
+      zones.forEach(z => {
+        const members = syncState.participants.filter(p => p.zone === z);
+        // Reduce sum safely matching p.num value logic
+        const sum = members.reduce((acc, current) => {
+          return acc + (current.score || 120) + (current.num * 10);
+        }, 0);
+        scoreTots[z] = sum;
+      });
+
+      writeTimelineLog(`[최종 결과 정산 완료] A구역 : ${scoreTots.A} | B구역 : ${scoreTots.B} | C구역 : ${scoreTots.C}`);
+      alert(`[서바이벌 최종 결과 결산]\n🏆 A구역(그린팀): ${scoreTots.A} 점\n🏆 B구역(핑크팀): ${scoreTots.B} 점\n🏆 C구역(사이언팀): ${scoreTots.C} 점`);
+    }
+
+    function resetPresenterFull() {
+      if (!confirm("전체 DB 캐시를 비우고 세션 리허설 상태를 복구할까요?")) return;
+      syncState = {
+        participants: [],
+        currentRound: 0,
+        step: 'INTRO',
+        timerStartTimestamp: null,
+        timerDuration: 30,
+        timerActive: false,
+        leaders: { A: "", B: "", C: "" },
+        votes: { A: "", B: "", C: "" },
+        ejected: { A: "", B: "", C: "" },
+        transitionLogs: [],
+        systemSerialNum: 0
+      };
+      writeDatabaseGameState();
+      writeTimelineLog("[SYSTEM] 데이터베이스 초기 수치 리셋 정규화 완료.");
+    }
+  </script>
+
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 5: INDEPENDENT SIMULATOR INTERACTIVE MODULES (격리 설계)
+    // ----------------------------------------------------
+    let isCollapsed = false;
+
+    function toggleSimCollapse() {
+      const body = document.getElementById('sim-body');
+      isCollapsed = !isCollapsed;
+      body.style.display = isCollapsed ? 'none' : 'block';
+    }
+
+    // 가상 봇 15명 입장 (p.num #1~#4 순환 배정 로직 장착)
+    function seedPresenterBots() {
+      // Avoid duplicated seed
+      syncState.participants = syncState.participants.filter(p => !p.isBot);
+      
+      const zones = ['A', 'B', 'C'];
+      zones.forEach(z => {
+        for (let i = 1; i <= 5; i++) {
+          syncState.systemSerialNum += 1;
+          // #1 to #4 lucky index loop assigning
+          const calculatedNum = ((syncState.systemSerialNum - 1) % 4) + 1;
+          const pId = `bot_${z.toLowerCase()}_${i}_` + Math.random().toString(36).substring(3,7);
+          
+          syncState.participants.push({
+            id: pId,
+            nickname: `가상봇_${z}${i}`,
+            zone: z,
+            num: calculatedNum,
+            isBot: true,
+            score: 100 + calculatedNum * 20
+          });
+        }
+      });
+
+      writeTimelineLog("[SIMULATOR] 대기실로 15명의 서바이벌 가상 전투봇 칩셋 주입완료!");
+      writeDatabaseGameState();
+    }
+
+    // 가상 리더 랜덤 투표 시뮬레이션
+    function simTriggerRandomVotes() {
+      if (syncState.step !== 'VOTING') {
+        alert("투표 진행(VOTING) 단계에서만 작동하는 격리 시뮬레이터 동작입니다.");
+        return;
+      }
+      const zones = ['A', 'B', 'C'];
+      zones.forEach(z => {
+        const members = syncState.participants.filter(p => p.zone === z);
+        if (members.length > 0) {
+          syncState.votes[z] = Math.random() < 0.5 ? 'BLUE' : 'RED';
+        }
+      });
+      writeTimelineLog("[SIMULATOR] 가상 각 구역 리더 투표 지명 완료!");
+      
+      // Auto check after voting seed
+      const activeNonEmptyZones = zones.filter(z => syncState.participants.some(p => p.zone === z));
+      const allSelected = activeNonEmptyZones.every(z => !!syncState.votes[z]);
+      if (allSelected) {
+        writeTimelineLog("[SIMULATOR] 모든 리더 선택 감지. 방출 단계로 자율 이행합니다.");
+        triggerEjectionPhaseSafe();
+      } else {
+        writeDatabaseGameState();
+      }
+    }
+
+    // 가상 리더 랜덤 방출 실행
+    function simTriggerRandomEjection() {
+      if (syncState.step !== 'EJECTION') {
+        alert("방출 타임 심의(EJECTION) 단계에서만 타동작 가능합니다.");
+        return;
+      }
+      const zones = ['A', 'B', 'C'];
+      zones.forEach(z => {
+        if (syncState.votes[z] === 'RED') {
+          const members = syncState.participants.filter(p => p.zone === z);
+          if (members.length > 0 && !syncState.ejected[z]) {
+            const leadId = syncState.leaders[z];
+            const candidateList = members.filter(p => p.id !== leadId);
+            const targets = candidateList.length > 0 ? candidateList : members;
+            const chosen = targets[Math.floor(Math.random() * targets.length)];
+            syncState.ejected[z] = chosen.id;
+            writeTimelineLog(`[SIMULATOR] ${z}구역 가상리더가 '${chosen.nickname}'님을 방출 지목 완료.`);
+          }
+        }
+      });
+
+      const activeRedZones = zones.filter(z => syncState.votes[z] === 'RED' && syncState.participants.some(p => p.zone === z));
+      const allSelected = activeRedZones.every(z => !!syncState.ejected[z]);
+      if (allSelected) {
+        writeTimelineLog("[SIMULATOR] 방출 지명 완결. 이동 배치 스왑을 추진합니다!");
+        triggerCompelledTradesReallocate();
+      } else {
+        writeDatabaseGameState();
+      }
+    }
+  </script>
+
+  <script>
+    // App Boot Up
+    window.onload = () => {
+      renderPresenterScripterDeck();
+    };
+
+    // Fallback static observers for single offline tests
+    function setupStateDatabaseObservers() {
+      executeCoreVisualRenderEngine();
+    }
+  </script>
+</body>
+</html>

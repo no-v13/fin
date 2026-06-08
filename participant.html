@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Squid Game Survival - Participant App</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase Compat v9 SDK CDNs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background-color: #050505;
+      color: #ffffff;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 5px rgba(255, 0, 127, 0.6), 0 0 10px rgba(255, 0, 127, 0.8);
+    }
+    .neon-border-pink {
+      box-shadow: 0 0 10px rgba(255, 0, 127, 0.3);
+      border-color: rgba(255, 0, 127, 0.6);
+    }
+    .button-pulsing {
+      animation: btn-pulsing-anim 1.5s infinite alternate;
+    }
+    @keyframes btn-pulsing-anim {
+      0% { box-shadow: 0 0 12px rgba(255, 0, 127, 0.4); transform: scale(1); }
+      100% { box-shadow: 0 0 25px rgba(255, 0, 127, 0.8); transform: scale(1.02); }
+    }
+    .game-badge {
+      border: 1px solid rgba(255,0,127,0.3);
+      background: rgba(255,0,127,0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-5 relative overflow-x-hidden">
+
+  <!-- Setup Backdrop Decoration -->
+  <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(0,255,255,0.04)_0%,transparent_65%)] pointer-events-none"></div>
+
+  <!-- FIREBASE CONFIGURATION OR IN-MEMORY POPUP (IF REGISTRATION COMPONENT REQUIRES DB) -->
+  <div id="fb-par-overlay" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
+    <div class="max-w-xs w-full bg-zinc-950 border-2 border-pink-500 p-6 rounded-3xl neon-border-pink">
+      <h4 class="text-sm font-black tracking-widest text-[#FF007F] text-center uppercase mb-1">PARTICIPANT CONNECT</h4>
+      <p class="text-[10px] text-zinc-400 text-center mb-5 font-medium leading-relaxed">Enter the same Firebase database credentials as configured on the main scoreboard.</p>
+      
+      <div id="quick-preset-helper" class="mb-4 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800 text-[9px] text-zinc-400 text-center">
+        💡 If you set up the scoreboard in demo mode,<br>touch <span class="text-[#00FFFF] font-bold">Local Sandbox</span> below.
+      </div>
+
+      <div class="space-y-3.5">
+        <div>
+          <label class="block text-[10px] text-zinc-500 font-bold mb-1">API Key</label>
+          <input id="p-fb-apiKey" type="text" placeholder="AIzaSy..." class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="block text-[10px] text-zinc-500 font-bold mb-1">Database URL</label>
+          <input id="p-fb-databaseURL" type="text" placeholder="https://..." class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="block text-[10px] text-zinc-500 font-bold mb-1">Project ID</label>
+          <input id="p-fb-projectId" type="text" placeholder="project-id" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-pink-500">
+        </div>
+        
+        <div class="flex gap-2 pt-2">
+          <button onclick="startParInMemory()" class="flex-1 py-2.5 px-3 rounded-xl text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-750 text-zinc-300">
+            Local Sandbox
+          </button>
+          <button onclick="connectParFirebase()" class="flex-1 py-2.5 px-3 rounded-xl text-[10px] font-bold bg-pink-600 text-white">
+            Connect Live
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQUID SENSORY TOP LOGO BAR -->
+  <header class="flex items-center justify-between border-b border-zinc-900 pb-3 relative z-10 w-full">
+    <div class="flex items-center gap-2">
+      <div class="flex gap-1">
+        <span class="w-6 h-6 rounded-full border border-[#FF007F] flex items-center justify-center font-bold text-[#FF007F] text-xs">○</span>
+        <span class="w-6 h-6 border border-[#00FFFF] flex items-center justify-center font-bold text-[#00FFFF] rotate-45 transform text-[10px]">▲</span>
+        <span class="w-6 h-6 border border-[#00FF55] flex items-center justify-center font-bold text-[#00FF55] text-xs">■</span>
+      </div>
+      <div>
+        <h2 class="text-sm font-black tracking-widest text-zinc-150 uppercase">SURVIVAL CHIPS</h2>
+        <span class="text-[8px] text-[#00FFFF] font-mono tracking-widest leading-none block">PARTICIPANT MOBILE HANDHELD</span>
+      </div>
+    </div>
+
+    <!-- PERSISTED LUCKY NUMBER AND SCORE BADGES -->
+    <div id="participant-identity-box" style="display:none;" class="flex items-center gap-2">
+      <span id="badge-lucky-num" class="px-2 py-0.5 rounded-full font-black text-xs text-[#00FFFF] border border-[#00FFFF]/30 bg-[#00FFFF]/10 shadow-[0_0_8px_rgba(0,255,255,0.2)]">#--</span>
+      <span id="badge-client-score" class="px-2 py-0.5 rounded-full font-bold text-[10px] text-pink-400 border border-pink-500/30 bg-pink-500/10">120 P</span>
+    </div>
+  </header>
+
+  <!-- 1. ENTRY / LOGIN SCREEN (Teal theme physical configurations) -->
+  <section id="view-login" class="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-6 relative z-10 py-10">
+    <div class="text-center space-y-2">
+      <span class="px-3 py-1 rounded bg-teal-900/30 border border-teal-500/30 text-teal-400 text-[10px] font-bold tracking-widest uppercase">REGISTRATION PROTOCOL</span>
+      <h2 class="text-2xl font-extrabold text-white">Join Survival</h2>
+      <p class="text-zinc-400 text-xs leading-relaxed">Enter your callsign and select your physical seating section in the hall.</p>
+    </div>
+
+    <!-- Login card form -->
+    <div class="bg-zinc-950/80 border border-zinc-800 p-6 rounded-2xl space-y-4 shadow-xl">
+      <div>
+        <label class="block text-xs font-bold text-zinc-400 mb-1.5">Survival Agent Nickname</label>
+        <input id="in-nickname" type="text" placeholder="Enter Nickname (e.g., Gi-Hun)" class="w-full bg-zinc-900 border border-zinc-700 focus:border-teal-400 rounded-xl px-4 py-3 text-sm text-white focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-zinc-400 mb-1.5">Physical Seating Section</label>
+        <div class="grid grid-cols-3 gap-2.5">
+          <button onclick="selectPhysicsZone('A')" id="btn-zone-A" class="py-3 border-2 border-zinc-800 hover:border-teal-400 text-zinc-400 font-bold rounded-xl text-center bg-black transition-all">Zone A</button>
+          <button onclick="selectPhysicsZone('B')" id="btn-zone-B" class="py-3 border-2 border-zinc-800 hover:border-teal-400 text-zinc-400 font-bold rounded-xl text-center bg-black transition-all">Zone B</button>
+          <button onclick="selectPhysicsZone('C')" id="btn-zone-C" class="py-3 border-2 border-zinc-800 hover:border-teal-400 text-zinc-400 font-bold rounded-xl text-center bg-black transition-all">Zone C</button>
+        </div>
+      </div>
+
+      <button id="btn-submit-enroll" onclick="attemptEnrollParticipant()" class="w-full mt-2 py-4 bg-teal-500 text-black font-black uppercase text-sm tracking-widest rounded-xl hover:bg-teal-400 transition-all cursor-pointer shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+        Enroll Agent ▶
+      </button>
+    </div>
+  </section>
+
+  <!-- 2. GAME ACTIVE VIEWPORT (CHAMELEON-LIKE LAYOUT CHANGES) -->
+  <section id="view-active-game" style="display:none;" class="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full py-6 relative z-10">
+    <div id="viewport-body" class="space-y-6 w-full text-center">
+      <!-- Loading default spinner or text -->
+    </div>
+  </section>
+
+  <!-- PERSISTED BOTTOM STATUS DECK -->
+  <footer id="client-footer-status" style="display:none;" class="border-t border-zinc-900 pt-3 relative z-10 flex items-center justify-between text-[10px] text-zinc-500 font-mono w-full">
+    <span>NICKNAME: <span id="footer-client-nick" class="font-bold text-teal-400">-</span></span>
+    <span>CURRENT ZONE: <span id="footer-client-zone" class="font-bold text-pink-400">ZONE -</span></span>
+  </footer>
+
+  <!-- DYNAMIC CORE LOGIC SYNC -->
+  <script>
+    let isConnectedWithFirebase = false;
+    let databaseReference = null;
+
+    let syncState = {
+      participants: [],
+      currentRound: 0,
+      step: 'INTRO',
+      leaders: { A: "", B: "", C: "" },
+      votes: { A: "", B: "", C: "" },
+      ejected: { A: "", B: "", C: "" }
+    };
+
+    // Client Session variables
+    let selfId = "";
+    let selfNickname = "";
+    let selfZone = "A"; // Default select A
+    let selfNum = 1;
+    let selfScore = 120;
+
+    function startParInMemory() {
+      document.getElementById('fb-par-overlay').style.display = 'none';
+      setupLocalMockStatesAndSync();
+    }
+
+    function connectParFirebase() {
+      const apiKey = document.getElementById('p-fb-apiKey').value.trim();
+      const databaseURL = document.getElementById('p-fb-databaseURL').value.trim();
+      const projectId = document.getElementById('p-fb-projectId').value.trim();
+
+      if (!apiKey || !databaseURL || !projectId) {
+        alert("Please fill out all Firebase credentials to sync live game states.");
+        return;
+      }
+
+      try {
+        const firebaseConfig = { apiKey, databaseURL, projectId };
+        firebase.initializeApp(firebaseConfig);
+        databaseReference = firebase.database().ref('game_broadcasting_state');
+        isConnectedWithFirebase = true;
+        document.getElementById('fb-par-overlay').style.display = 'none';
+
+        // Listen for board state synchronization
+        databaseReference.on('value', (snapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            syncState = val;
+            
+            // Re-identify self payload properties updated from backend rules
+            if (selfId) {
+              const matchedSelfObj = syncState.participants.find(p => p.id === selfId);
+              if (matchedSelfObj) {
+                selfZone = matchedSelfObj.zone;
+                selfNum = matchedSelfObj.num;
+                selfScore = matchedSelfObj.score || 120;
+                
+                // Keep UI identities fresh
+                document.getElementById('badge-lucky-num').innerText = `#${selfNum}`;
+                document.getElementById('badge-client-score').innerText = `${selfScore} Point`;
+                document.getElementById('footer-client-zone').innerText = `ZONE ${selfZone}`;
+              }
+            }
+
+            renderParticipantResponsiveLayout();
+          }
+        });
+      } catch (e) {
+        alert("Firebase connection failed: " + e.message);
+      }
+    }
+  </script>
+
+  <script>
+    // Enroll and physical zone allocations
+    function selectPhysicsZone(zone) {
+      selfZone = zone;
+      
+      const zoneIds = ['A', 'B', 'C'];
+      zoneIds.forEach(z => {
+        const btn = document.getElementById(`btn-zone-${z}`);
+        if(z === zone) {
+          btn.className = "py-3 border-2 border-teal-400 text-teal-400 font-black rounded-xl text-center bg-teal-950/20 shadow-[0_0_10px_rgba(20,184,166,0.3)] transition-all";
+        } else {
+          btn.className = "py-3 border-2 border-zinc-800 hover:border-teal-400 text-zinc-400 font-bold rounded-xl text-center bg-black transition-all";
+        }
+      });
+    }
+
+    function attemptEnrollParticipant() {
+      const nickIn = document.getElementById('in-nickname').value.trim();
+      if(!nickIn) {
+        alert("Please enter a unique callsing nickname to join the game!");
+        return;
+      }
+
+      selfNickname = nickIn;
+      selfId = "par_" + Math.random().toString(36).substring(3, 7) + "_" + Date.now().toString().slice(-4);
+
+      // Unique cyclic Lucky Index assignments (#1 to #4 loop assignment)
+      const currentParticipantsCount = syncState.participants ? syncState.participants.length : 0;
+      selfNum = (currentParticipantsCount % 4) + 1;
+      selfScore = 120; // Default initial point
+
+      const newParticipantPayload = {
+        id: selfId,
+        nickname: selfNickname,
+        zone: selfZone,
+        num: selfNum,
+        isBot: false,
+        score: selfScore
+      };
+
+      if (!syncState.participants) syncState.participants = [];
+      syncState.participants.push(newParticipantPayload);
+
+      writeDatabaseStateOrTrigger();
+
+      // View Shift
+      document.getElementById('view-login').style.display = 'none';
+      document.getElementById('view-active-game').style.display = 'flex';
+      
+      document.getElementById('participant-identity-box').style.display = 'flex';
+      document.getElementById('client-footer-status').style.display = 'flex';
+      
+      document.getElementById('footer-client-nick').innerText = selfNickname;
+      document.getElementById('footer-client-zone').innerText = `ZONE ${selfZone}`;
+      document.getElementById('badge-lucky-num').innerText = `#${selfNum}`;
+      document.getElementById('badge-client-score').innerText = `${selfScore} Point`;
+
+      writeDatabaseStateOrTrigger();
+    }
+
+    function writeDatabaseStateOrTrigger() {
+      if (isConnectedWithFirebase && databaseReference) {
+        databaseReference.set(syncState);
+      } else {
+        renderParticipantResponsiveLayout();
+      }
+    }
+  </script>
+
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 3: CHAMELION-LIKE RESPONSIVE CLIENT VIEWPORT DECISIONS
+    // ----------------------------------------------------
+    function renderParticipantResponsiveLayout() {
+      const viewport = document.getElementById('viewport-body');
+      viewport.innerHTML = '';
+
+      const isLobby = syncState.currentRound === 0;
+      
+      if (isLobby) {
+        // LOBBY STANDBY VIEW
+        viewport.innerHTML = `
+          <div class="space-y-5 py-8">
+            <div class="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-teal-500/10 border border-teal-400 text-teal-400 text-3xl animate-pulse">
+              🛡️
+            </div>
+            <div class="space-y-1.5">
+              <h3 class="text-xl font-black text-white">Standby Lobby</h3>
+              <p class="text-xs text-zinc-400">Successfully joined the standby lounge.</p>
+            </div>
+            <div class="p-4 rounded-xl border border-zinc-800 bg-zinc-950 font-mono text-[10px] space-y-1.5 text-left">
+              <span class="text-teal-400 font-extrabold uppercase tracking-widest block mb-1 font-sans">[BOARD SYNCED]</span>
+              <p class="text-zinc-500">My Lucky Number: <span class="text-white font-bold">#${selfNum}</span></p>
+              <p class="text-zinc-500 font-sans">Seating Area: <span class="text-[#FF007F] font-bold">Zone ${selfZone}</span></p>
+              <p class="text-zinc-500 font-sans mt-2">The layout will synchronize automatically once the Host begins the survival game.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Helper to fetch scenarios & images dynamically per round as requested
+      function getScenarioInfo(roundNum) {
+        const scenarios = {
+          1: {
+            title: "Round 1: The Red or Blue Button",
+            desc: `Scenario: You are locked in a room. There are two buttons in front of you.
+
+If all teams choose Blue, everyone survives peacefully. However, if more than half of the people choose Red, only the Red choosers survive, and everyone else dies. You have 30 seconds to talk, and your team should choose either blue or red. Go! Time is up! Which button did you choose? In return for this survival, the Red team must trade one member to another group. Remember, even if you move to a new team, you must keep your original number card with you.`,
+            img: "/round1.png"
+          },
+          2: {
+            title: "Round 2: Zombie Apocalypse in Woolworths",
+            desc: `Scenario: A zombie crisis has started. You are now stuck inside Woolworths with very little food.
+
+If your team chooses Red again, you must trade another member randomly. 30 seconds. Start! Teams that chose Red, please change one of your members right now.`,
+            img: "/round2.png"
+          },
+          3: {
+            title: "Round 3: The Runaway Train (Final Battle)",
+            desc: `Scenario: A runaway train is coming at 150 km/h. There are old workers on the track.
+
+This is your final choice. 30 seconds, go! The game is over. You must trade another member again. Now, please open your secret score cards. Teams, add up all the numbers of your current members. The team with the highest score wins!`,
+            img: "/round3.png"
+          }
+        };
+        return scenarios[roundNum] || { title: "System Standby", desc: "Waiting for the round to begin.", img: "" };
+      }
+
+      function getTimerMarkup() {
+        if (!syncState.timerActive) return '';
+        return `
+          <div class="p-3 bg-zinc-950/90 border border-[#00FFFF]/30 rounded-2xl text-center space-y-0.5 max-w-sm mx-auto shadow-[0_0_15px_rgba(0,255,255,0.1)] mb-3">
+            <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block font-sans">Remaining Decision Time</span>
+            <span id="mobile-ticking-timer" class="text-4xl font-mono font-black text-[#00FFFF] drop-shadow-[0_0_10px_rgba(0,255,255,0.4)]">--:--</span>
+          </div>
+        `;
+      }
+
+      // Check if self is designated as the chief of current Zone
+      const isChief = (syncState.leaders[selfZone] === selfId);
+      const hostChosenVoteOption = syncState.votes[selfZone];
+      const isEjectedTargetMyself = (syncState.ejected[selfZone] === selfId);
+
+      // --- PHASE 0: INTRO STEP SCREEN ---
+      if (syncState.step === 'INTRO') {
+        const roundInfo = getScenarioInfo(syncState.currentRound);
+        viewport.innerHTML = `
+          <div class="space-y-4 py-2 text-center">
+            <span class="px-2.5 py-0.5 bg-zinc-900 border border-zinc-800 rounded-full text-[9px] font-bold text-teal-400 tracking-widest uppercase">
+              ROUND 0${syncState.currentRound} WAITING
+            </span>
+            <h3 class="text-sm font-black text-white uppercase tracking-wider">${roundInfo.title}</h3>
+            
+            <div class="rounded-xl border border-zinc-900 overflow-hidden bg-zinc-950/80">
+              <img src="${roundInfo.img}" class="w-full h-40 object-cover border-b border-zinc-900" referrerPolicy="no-referrer" />
+              <div class="p-3 text-left">
+                <p class="text-[11px] text-zinc-300 leading-relaxed whitespace-pre-line font-mono font-medium">${roundInfo.desc}</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-zinc-950 rounded-xl border border-zinc-900 text-[10px] text-zinc-400 text-left space-y-1">
+              <span class="font-bold text-[#FF007F] block">📢 Waiting for Host Instruction</span>
+              <p class="leading-relaxed text-zinc-500">The leader is being assigned for your team. Real-time timer synchronizations will start as soon as the Host triggers the clock.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // --- PHASE 1: VOTING PHASE ---
+      if (syncState.step === 'VOTING') {
+        const roundInfo = getScenarioInfo(syncState.currentRound);
+        if (isChief) {
+          // Chief leader decision controls active with full scenario visibility
+          viewport.innerHTML = `
+            <div class="space-y-4 py-2 text-center">
+              ${getTimerMarkup()}
+
+              <div class="p-2.5 bg-yellow-400 text-black font-extrabold text-[11px] rounded-xl flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(234,179,8,0.25)] uppercase tracking-wider">
+                👑 <span><strong>[CHIEF DECISION]</strong> You are the <strong>Leader of Zone ${selfZone}</strong></span>
+              </div>
+              
+              <div class="rounded-2xl border-2 border-zinc-800 bg-zinc-950/90 overflow-hidden shadow-2xl relative">
+                <!-- Large scenario image backdrop with gradient overlay -->
+                <div class="relative h-44 w-full bg-zinc-900">
+                  <img src="${roundInfo.img}" class="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                  <div class="absolute bottom-2.5 left-3 text-left">
+                    <span class="text-[9px] font-black uppercase text-[#00FFFF] bg-black/60 px-2 py-0.5 border border-[#00FFFF]/30 rounded">ACTIVE MISSION</span>
+                    <h4 class="text-sm font-black text-white mt-1 leading-none uppercase tracking-wide">${roundInfo.title}</h4>
+                  </div>
+                </div>
+
+                <div class="p-3 text-left max-h-[160px] overflow-y-auto">
+                  <p class="text-[11px] text-zinc-350 leading-relaxed font-mono whitespace-pre-line">${roundInfo.desc}</p>
+                </div>
+              </div>
+
+              <div class="space-y-2 pt-1">
+                <span class="text-[10px] text-zinc-400 font-bold block">CAST YOUR GROUP DECISION TO SURVIVE:</span>
+                <div class="grid grid-cols-2 gap-3 pb-2">
+                  <button onclick="commitChiefZoneVote('BLUE')" class="py-4 px-1 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/50 text-white font-extrabold text-xs tracking-widest uppercase transition-all button-pulsing cursor-pointer shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                    🔵 CO-SURVIVE
+                  </button>
+                  <button onclick="commitChiefZoneVote('RED')" class="py-4 px-1 rounded-xl bg-red-600 hover:bg-red-500 border border-red-500/55 text-white font-extrabold text-xs tracking-widest uppercase transition-all cursor-pointer shadow-[0_0_15px_rgba(220,38,38,0.3)]">
+                    🔴 EXCLUSION
+                  </button>
+                </div>
+              </div>
+
+              <div class="text-[10px] text-zinc-400 font-mono">
+                Current Transmitted Status: ${hostChosenVoteOption ? `<span class="text-[#00FFFF] font-bold">${hostChosenVoteOption} COMMITTED</span>` : `<span class="text-pink-500 animate-pulse font-bold">AWAITING DECISION (30 SECONDS LIMIT)</span>`}
+              </div>
+            </div>
+          `;
+        } else {
+          // Ordinary general member standby UI showing round info + monitoring text
+          const zoneChiefObj = syncState.participants.find(p => p.zone === selfZone && syncState.leaders[selfZone] === p.id);
+          const chiefNick = zoneChiefObj ? zoneChiefObj.nickname : "None";
+
+          viewport.innerHTML = `
+            <div class="space-y-4 py-2 text-center animate-fade-in">
+              ${getTimerMarkup()}
+
+              <span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-400 text-[9px] font-bold tracking-widest uppercase rounded">
+                TEAM MEMBER VIEW
+              </span>
+
+              <div class="rounded-2xl border border-zinc-850 bg-zinc-950/80 overflow-hidden shadow-xl">
+                <div class="relative h-44 w-full bg-zinc-900">
+                  <img src="${roundInfo.img}" class="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black to-black/35"></div>
+                  <div class="absolute bottom-2.5 left-3 text-left">
+                    <span class="text-[9px] font-black uppercase text-[#FF007F] bg-black/60 px-2 py-0.5 border border-[#FF007F]/30 rounded">GROUP MISSION</span>
+                    <h4 class="text-sm font-black text-white mt-1 leading-none uppercase tracking-wide">${roundInfo.title}</h4>
+                  </div>
+                </div>
+                <div class="p-3 text-left max-h-[160px] overflow-y-auto">
+                  <p class="text-[11px] text-zinc-350 leading-relaxed whitespace-pre-line font-mono font-medium">${roundInfo.desc}</p>
+                </div>
+              </div>
+
+              <div class="p-3 bg-zinc-950 border border-zinc-900 rounded-xl space-y-1.5 text-left shadow-inner">
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full bg-yellow-400 animate-ping"></div>
+                  <span class="text-[10px] font-extrabold text-zinc-300">Leader Decision in Progress</span>
+                </div>
+                <p class="text-[10px] text-zinc-400 leading-snug">
+                  Your designated leader <span class="text-yellow-400 font-bold underline">"${chiefNick}"</span> is deciding whether to cooperate or betray. Monitor the main scoreboard closely.
+                </p>
+              </div>
+            </div>
+          `;
+        }
+        return;
+      }
+
+      // --- PHASE 2: EJECTION HARSH STEP ---
+      if (syncState.step === 'EJECTION') {
+        const zoneMembers = syncState.participants.filter(p => p.zone === selfZone);
+        
+        if (hostChosenVoteOption === 'BLUE') {
+          // Peaceful survival notice
+          viewport.innerHTML = `
+            <div class="space-y-5 py-8">
+              <div class="w-20 h-20 rounded-full mx-auto flex items-center justify-center bg-blue-900/30 border border-blue-400 text-blue-400 text-3xl">
+                🛡️
+              </div>
+              <div class="space-y-1">
+                <h3 class="text-xl font-black text-blue-400 neon-text-pink">Survival Confirmed!</h3>
+                <p class="text-xs text-zinc-300">Your zone chose blue to survive cooperatively inside this round with no ejections.</p>
+              </div>
+              <p class="text-[10px] text-zinc-500 leading-relaxed font-mono">
+                Observe the scoreboard. Teammates are safe.<br>Survival reward (+50 P) has been added.
+              </p>
+            </div>
+          `;
+        } else if (hostChosenVoteOption === 'RED') {
+          // Exclusion Red danger zone
+          if (isChief) {
+            // Leader choose which member to eject
+            let membersButtonsHtml = '';
+            
+            // Remove lead self from direct selectable target list
+            const selectionPool = zoneMembers.filter(p => p.id !== selfId);
+            const targetPool = selectionPool.length > 0 ? selectionPool : zoneMembers;
+
+            targetPool.forEach(p => {
+              membersButtonsHtml += `
+                <button onclick="commitChiefDirectEject('${p.id}')" class="w-full text-left p-3.5 bg-zinc-900 border border-zinc-800 hover:border-red-500 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer">
+                  <div class="flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-black border border-zinc-700 flex items-center justify-center font-mono font-bold text-[10px]">#${p.num}</span>
+                    <span class="font-extrabold text-[#00FFFF]">${p.nickname}</span>
+                  </div>
+                  <span class="text-[10px] bg-red-950 border border-red-900/40 text-red-400 px-2 py-0.5 rounded uppercase font-black tracking-wider w-16 text-center">EXPEL</span>
+                </button>
+              `;
+            });
+
+            viewport.innerHTML = `
+              <div class="space-y-5 py-3">
+                ${getTimerMarkup()}
+
+                <div class="p-3 bg-red-950/20 border border-red-500/30 rounded-xl text-center">
+                  <span class="text-xs font-black text-red-400">🚨 Select 1 member within the limit to expel!</span>
+                  <p class="text-[9px] text-zinc-400 mt-1">If the timer runs out, the system will execute a random ejection.</p>
+                </div>
+
+                <div class="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+                  ${membersButtonsHtml || '<div class="text-xs text-zinc-500">No available members to expel</div>'}
+                </div>
+              </div>
+            `;
+          } else {
+            // Ordinary member pending ejection review
+            viewport.innerHTML = `
+              <div class="space-y-5 py-10">
+                ${getTimerMarkup()}
+
+                <div class="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-red-950/20 border border-red-500/80 text-red-500 text-2xl animate-bounce">
+                  🚨
+                </div>
+                <div class="space-y-1">
+                  <h4 class="text-base font-extrabold text-white">Ejection Verdict Pending...</h4>
+                  <p class="text-[11px] text-zinc-400">Your Chief Leader has played RED and must now select 1 teammate to sacrifice.</p>
+                </div>
+                <div class="p-3 bg-zinc-950 rounded-xl border border-zinc-900 text-[10px] text-zinc-500">
+                  Keep your lucky card with you if you are chosen for a transfer.
+                </div>
+              </div>
+            `;
+          }
+        } else {
+          // Waiting for host to process
+          viewport.innerHTML = `<div class="p-8 text-xs text-zinc-500">Processing live scoreboard events. Please standby...</div>`;
+        }
+        return;
+      }
+
+      // --- PHASE 3: TRADE SHIFT TIME ---
+      if (syncState.step === 'TRADE_TIME') {
+        const finalEjectors = Object.values(syncState.ejected);
+        const amIEjectedInState = finalEjectors.includes(selfId);
+
+        if (amIEjectedInState) {
+          // Oh no! I am ejected
+          viewport.innerHTML = `
+            <div class="space-y-5 py-6 bg-red-950/30 border border-red-500/40 p-4 rounded-2xl relative overflow-hidden text-center button-pulsing animate-pulse">
+              <div class="text-3xl">🚶</div>
+              <div class="space-y-1">
+                <h3 class="text-xl font-black text-red-500 tracking-tight leading-snug">🚨 Relocation Decree Active!</h3>
+                <p class="text-xs text-zinc-200">You have been selected for relocation to a new team refuge.</p>
+              </div>
+              <div class="p-4 bg-black/60 rounded-xl text-left border border-red-500/20 space-y-1.5 text-xs text-zinc-300 font-sans leading-relaxed">
+                <p class="font-extrabold text-[#00FFFF]">🚶 [ACTION INSTRUCTIONS]</p>
+                <p>Leave your physical bags silently at your current seat, and <strong class="text-white block mt-1.5 leading-snug">quietly standalone and move immediately to the newly assigned refuge indicated on the main display screen!</strong></p>
+              </div>
+            </div>
+          `;
+        } else {
+          // I survived and am safe
+          viewport.innerHTML = `
+            <div class="space-y-5 py-10">
+              <div class="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-emerald-950/30 border border-emerald-400 text-emerald-400 text-3xl">
+                ✔
+              </div>
+              <div class="space-y-1">
+                <h4 class="text-lg font-black text-emerald-400">Survival Verified!</h4>
+                <p class="text-xs text-zinc-400">You safely defended your sector seat with no ejections.</p>
+              </div>
+              <p class="text-[10px] text-zinc-500">
+                Reward points successfully updated.
+              </p>
+            </div>
+          `;
+        }
+        return;
+      }
+
+      // --- FINISHED SCORE SCREENS ---
+      if (syncState.step === 'FINISHED') {
+        const luckySumA = (syncState.participants || []).filter(p => p.zone === 'A').reduce((sum, p) => sum + (p.num || 0), 0);
+        const luckySumB = (syncState.participants || []).filter(p => p.zone === 'B').reduce((sum, p) => sum + (p.num || 0), 0);
+        const luckySumC = (syncState.participants || []).filter(p => p.zone === 'C').reduce((sum, p) => sum + (p.num || 0), 0);
+        const maxLuckySum = Math.max(luckySumA, luckySumB, luckySumC);
+        
+        const winningZones = [];
+        if (luckySumA === maxLuckySum && luckySumA > 0) winningZones.push('A');
+        if (luckySumB === maxLuckySum && luckySumB > 0) winningZones.push('B');
+        if (luckySumC === maxLuckySum && luckySumC > 0) winningZones.push('C');
+        
+        const amIWinner = winningZones.includes(selfZone);
+        
+        viewport.innerHTML = `
+          <div class="space-y-5 py-4 text-center">
+            <div class="text-4xl animate-bounce">🏆</div>
+            <div class="space-y-1">
+              <h3 class="text-lg font-black text-yellow-400 uppercase tracking-widest neon-text-pink">SQUID SURVIVAL FINISHED</h3>
+              <p class="text-[10px] text-zinc-400">All survival rounds have concluded. Winners determined.</p>
+            </div>
+            
+            ${amIWinner ? `
+              <div class="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-400 font-bold">
+                🎉 Congratulations! Your Zone ${selfZone} has won! 🎉
+              </div>
+            ` : `
+              <div class="p-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-zinc-300 font-medium">
+                The grand survival sequence has ended.
+              </div>
+            `}
+            
+            <div class="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 text-left space-y-3">
+              <h5 class="text-xs font-black text-rose-400 tracking-wide uppercase">🏆 Your Final Records</h5>
+              <div class="font-mono text-zinc-400 text-[11px] space-y-1">
+                <p>Lucky Card Number: <strong class="text-yellow-400">#${selfNum}</strong></p>
+                <p>Earned Point Asset: <strong class="text-[#00FFFF]">${selfScore} P</strong></p>
+                <p>Final Refuge Colony: <strong class="text-pink-400">Zone ${selfZone}</strong></p>
+              </div>
+            </div>
+
+            <!-- Total Scores Per Zone display -->
+            <div class="p-3.5 bg-black border border-zinc-900 rounded-xl text-left space-y-2">
+              <span class="text-[9px] text-zinc-500 font-bold block uppercase tracking-wider font-sans leading-none pb-1">TOTAL CARD CARDINAL VALUES PER ZONE</span>
+              <div class="space-y-1.5 font-mono text-xs">
+                <div class="flex justify-between items-center ${winningZones.includes('A') ? 'text-yellow-300 font-black' : 'text-zinc-500'}">
+                  <span>Zone A (TEAM GREEN)</span>
+                  <span>${luckySumA} ${winningZones.includes('A') ? '👑' : ''}</span>
+                </div>
+                <div class="flex justify-between items-center ${winningZones.includes('B') ? 'text-yellow-300 font-black' : 'text-zinc-500'}">
+                  <span>Zone B (TEAM PINK)</span>
+                  <span>${luckySumB} ${winningZones.includes('B') ? '👑' : ''}</span>
+                </div>
+                <div class="flex justify-between items-center ${winningZones.includes('C') ? 'text-yellow-300 font-black' : 'text-zinc-500'}">
+                  <span>Zone C (TEAM CYAN)</span>
+                  <span>${luckySumC} ${winningZones.includes('C') ? '👑' : ''}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Default Pending Loading State fallback
+      viewport.innerHTML = `<div class="p-10 text-xs text-zinc-500">Standing by for next host command...</div>`;
+    }
+
+    function commitChiefZoneVote(v) {
+      syncState.votes[selfZone] = v;
+      writeDatabaseStateOrTrigger();
+    }
+
+    function commitChiefDirectEject(targetId) {
+      syncState.ejected[selfZone] = targetId;
+      writeDatabaseStateOrTrigger();
+    }
+  </script>
+
+  <script>
+    // ----------------------------------------------------
+    // SCRIPT 4: LOCAL MOCK STATES (SANDBOX FALLBACK COOPERATE)
+    // ----------------------------------------------------
+    function setupLocalMockStatesAndSync() {
+      // Simulate real-time polling or direct interaction for offline user
+      setInterval(() => {
+        if (!isConnectedWithFirebase) {
+          // Emulate board change periodically
+          const mockStateStr = localStorage.getItem('game_broadcasting_state_mock');
+          if (mockStateStr) {
+            const parsed = JSON.parse(mockStateStr);
+            if (JSON.stringify(syncState) !== JSON.stringify(parsed)) {
+              syncState = parsed;
+              
+              // Find new state changes
+              if (selfId) {
+                const selfObj = syncState.participants.find(p => p.id === selfId);
+                if (selfObj) {
+                  selfZone = selfObj.zone;
+                  selfNum = selfObj.num;
+                  selfScore = selfObj.score || 120;
+                  
+                  document.getElementById('badge-lucky-num').innerText = `#${selfNum}`;
+                  document.getElementById('badge-client-score').innerText = `${selfScore} Point`;
+                  document.getElementById('footer-client-zone').innerText = `ZONE ${selfZone}`;
+                }
+              }
+              renderParticipantResponsiveLayout();
+            }
+          }
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
